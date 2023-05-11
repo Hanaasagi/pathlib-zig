@@ -139,7 +139,7 @@ fn get_home_dir() []const u8 {
         },
         .macos => {},
         else => {
-            var home = std.os.getenv("XDG_CONFIG_HOME") orelse "";
+            var home = std.os.getenv("XDG_HOME") orelse "";
             if (home.len != 0) {
                 return home;
             }
@@ -322,6 +322,8 @@ test "test home" {
     defer path.deinit();
 
     const expect: []const u8 = std.os.getenv("HOME") orelse "";
+    // std.debug.print("\n{any}\n", .{expect});
+    // std.debug.print("\n{any}\n", .{path.toSlice()});
 
     try std.testing.expect(std.mem.eql(u8, path.toSlice(), expect));
 }
