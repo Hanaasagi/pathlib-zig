@@ -223,6 +223,10 @@ pub const Path = struct {
         return std.fs.path.isAbsolute(self.toSlice());
     }
 
+    pub fn isRelative(self: Path) bool {
+        return !std.fs.path.isAbsolute(self.toSlice());
+    }
+
     pub fn name(self: Path) []const u8 {
         return std.fs.path.basename(self.toSlice());
     }
@@ -234,6 +238,22 @@ pub const Path = struct {
 
     pub fn suffix(self: Path) []const u8 {
         return std.fs.path.extension(self.toSlice());
+    }
+
+    pub fn suffixes(self: Path) !std.ArrayList([]const u8) {
+        var path = self.toSlice();
+        var list = std.ArrayList([]const u8).init(self.allocator);
+
+        while (true) {
+            const ext = std.fs.path.extension(path);
+            if (ext.len == 0) {
+                break;
+            }
+
+            try list.insert(0, ext);
+            path = path[0 .. path.len - ext.len];
+        }
+        return list;
     }
 
     pub fn joinPath(self: Path, others: []const Path) Allocator.Error!Path {
@@ -280,6 +300,30 @@ pub const Path = struct {
         }
     }
 
+    pub fn isBlockDevice(self: Path) !bool {
+        const s = try self.stat();
+        return s.kind == std.fs.File.Kind.BlockDevice;
+    }
+
+    pub fn isCharDevice(self: Path) !bool {
+        const s = try self.stat();
+        return s.kind == std.fs.File.Kind.CharacterDevice;
+    }
+
+    pub fn isSocket(self: Path) !bool {
+        const s = try self.stat();
+        return s.kind == std.fs.File.Kind.UnixDomainSocket;
+    }
+
+    pub fn isSymlink(self: Path) !bool {
+        const s = try self.stat();
+        return s.kind == std.fs.File.Kind.SymLink;
+    }
+    pub fn isFifo(self: Path) !bool {
+        const s = try self.stat();
+        return s.kind == std.fs.File.Kind.NamedPipe;
+    }
+
     pub fn isDir(self: Path) !bool {
         const path = self.toSlice();
         if (!self.isAbsolute()) {
@@ -322,8 +366,6 @@ test "test home" {
     defer path.deinit();
 
     const expect: []const u8 = std.os.getenv("HOME") orelse "";
-    // std.debug.print("\n{any}\n", .{expect});
-    // std.debug.print("\n{any}\n", .{path.toSlice()});
 
     try std.testing.expect(std.mem.eql(u8, path.toSlice(), expect));
 }
@@ -358,6 +400,14 @@ test "test isAbsolute" {
     try std.testing.expect(lib.fromSlice("/home/zig/src").isAbsolute() == true);
 }
 
+test "test isRelative" {
+    const lib = PathLib.init(std.testing.allocator);
+
+    try std.testing.expect(lib.fromSlice("./zig/src").isRelative() == true);
+
+    try std.testing.expect(lib.fromSlice("/home/zig/src").isRelative() == false);
+}
+
 test "test parent" {
     const path = PathLib.init(std.testing.allocator).fromSlice("/home/monosuzu").parent();
     defer path.deinit();
@@ -386,6 +436,18 @@ test "test suffix" {
     path = lib.fromSlice("my/library");
     defer path.deinit();
     try std.testing.expect(std.mem.eql(u8, path.suffix(), ""));
+}
+
+test "test suffixes" {
+    const lib = PathLib.init(std.testing.allocator);
+
+    const path = lib.fromSlice("my/library.tar.gz");
+    defer path.deinit();
+
+    var res = try path.suffixes();
+    defer res.deinit();
+
+    try std.testing.expect(res.items.len == 2);
 }
 
 test "test joinPath" {
@@ -501,3 +563,23 @@ test "test glob" {
 
     try std.testing.expect(std.mem.eql(u8, res.items[0], "build.zig"));
 }
+
+test "test isBlockDevice" {
+    // TODO:
+    var path = PathLib.init(std.testing.allocator).fromSlice("/dev/block");
+    defer path.deinit();
+
+    try std.testing.expect(try path.isBlockDevice() == false);
+}
+
+test "test isCharDevice" {
+    var path = PathLib.init(std.testing.allocator).fromSlice("/dev/random");
+    defer path.deinit();
+
+    try std.testing.expect(try path.isCharDevice() == true);
+}
+test "test isSocket" {}
+
+test "test isSymlink" {}
+
+test "test isFifo" {}
