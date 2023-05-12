@@ -1,0 +1,8 @@
+pkgs:
+  pathlib:
+    version: 0.1.0
+    description: user friendly path library
+    license: BSD-3
+    source_url: "https://github.com/Hanaasagi/pathlib-zig"
+    tags: semver
+    root: src/main.zig
