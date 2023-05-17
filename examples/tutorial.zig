@@ -63,8 +63,20 @@ pub fn main() !void {
         std.debug.print("{s} is existed\n\n", .{tFullPath.toSlice()});
     }
 
-    std.debug.print("glob `*/*.zig` in cwd\n", .{});
-    var it = try cwd.glob("*/*.zig");
+    std.debug.print("glob `*.zig` in {s}\n", .{cwd.toSlice()});
+    var it = try cwd.glob("*.zig");
+    while (try it.next()) |p| {
+        std.debug.print("\t>>> {s}\n", .{p});
+    }
+
+    std.debug.print("glob `*/*.zig` in {s}\n", .{cwd.toSlice()});
+    it = try cwd.glob("*/*.zig");
+    while (try it.next()) |p| {
+        std.debug.print("\t>>> {s}\n", .{p});
+    }
+
+    std.debug.print("glob `*` in {s}\n", .{cwd.toSlice()});
+    it = try cwd.glob("*");
     while (try it.next()) |p| {
         std.debug.print("\t>>> {s}\n", .{p});
     }

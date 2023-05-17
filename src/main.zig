@@ -99,7 +99,9 @@ pub const Iterator = struct {
                         try self.components.append(self.allocator, entry.name);
                         self.path = try std.fs.path.join(self.allocator, self.components.items);
                         _ = self.components.pop();
-                        return self.path;
+                        if (i == self.segments.items.len - 1) {
+                            return self.path;
+                        }
                     },
                     .Directory => {
                         if (i < self.segments.items.len - 1) {
@@ -122,7 +124,8 @@ pub const Iterator = struct {
 
             i -= 1;
             _ = self.components.pop();
-            _ = self.stack.pop();
+            var dir = self.stack.pop().dir;
+            dir.close();
             // self.stack.pop().dir.close();
         }
     }
@@ -228,7 +231,7 @@ pub const Path = struct {
         return std.mem.eql(u8, a._path, b._path);
     }
 
-    pub fn toSlice(self: Path) []const u8 {
+    pub inline fn toSlice(self: Path) []const u8 {
         return self._path;
     }
 
@@ -239,11 +242,11 @@ pub const Path = struct {
         return result;
     }
 
-    pub fn isAbsolute(self: Path) bool {
+    pub inline fn isAbsolute(self: Path) bool {
         return std.fs.path.isAbsolute(self.toSlice());
     }
 
-    pub fn isRelative(self: Path) bool {
+    pub inline fn isRelative(self: Path) bool {
         return !std.fs.path.isAbsolute(self.toSlice());
     }
 
@@ -256,7 +259,7 @@ pub const Path = struct {
         return cwd.joinPath(&[_]Path{self});
     }
 
-    pub fn name(self: Path) []const u8 {
+    pub inline fn name(self: Path) []const u8 {
         return std.fs.path.basename(self.toSlice());
     }
 
@@ -278,7 +281,7 @@ pub const Path = struct {
         return Path.init(self.allocator, p, false);
     }
 
-    pub fn suffix(self: Path) []const u8 {
+    pub inline fn suffix(self: Path) []const u8 {
         return std.fs.path.extension(self.toSlice());
     }
 
@@ -360,22 +363,22 @@ pub const Path = struct {
         }
     }
 
-    pub fn isBlockDevice(self: Path) !bool {
+    pub inline fn isBlockDevice(self: Path) !bool {
         const s = try self.stat();
         return s.kind == std.fs.File.Kind.BlockDevice;
     }
 
-    pub fn isCharDevice(self: Path) !bool {
+    pub inline fn isCharDevice(self: Path) !bool {
         const s = try self.stat();
         return s.kind == std.fs.File.Kind.CharacterDevice;
     }
 
-    pub fn isSocket(self: Path) !bool {
+    pub inline fn isSocket(self: Path) !bool {
         const s = try self.stat();
         return s.kind == std.fs.File.Kind.UnixDomainSocket;
     }
 
-    pub fn isSymlink(self: Path) !bool {
+    pub inline fn isSymlink(self: Path) !bool {
         const s = try self.stat();
         return s.kind == std.fs.File.Kind.SymLink;
     }
@@ -741,6 +744,11 @@ test "test match" {
     path = PathLib.init(std.testing.allocator).fromSlice("/b.zig");
     defer path.deinit();
     try std.testing.expect(path.match("*.zig") == true);
+
+    path = PathLib.init(std.testing.allocator).fromSlice("README.md");
+    defer path.deinit();
+    try std.testing.expect(path.match("*.zig") == false);
+    try std.testing.expect(path.match("*/*.zig") == false);
 }
 
 test "test match nested" {
@@ -761,6 +769,8 @@ test "test match nested" {
     try std.testing.expect(path.match("*.zig") == true);
     // TODO: ?
     try std.testing.expect(path.match("b/*.zig") == false);
+
+    try std.testing.expect(path.match("*.py") == false);
 }
 
 test "test glob" {

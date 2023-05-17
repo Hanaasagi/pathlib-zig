@@ -18,7 +18,6 @@ fn bin(b: *Builder, mode: *const Mode, target: *const CrossTarget, comptime sour
         // file.setTarget(target.*);
         file.addPackage(pkg_pathlib);
         file.linkLibC();
-        file.linkSystemLibrary("ev");
         file.install();
     }
 }
