@@ -25,7 +25,7 @@ jobs:
       - run: zig version
       - run: zig env
       - run: ls
-      - run: ls zig-cache
+      - run: ls zig-cache || echo 'no zig-cache'
       - name: Build
         run: zig build --verbose
       - name: Run Tests
