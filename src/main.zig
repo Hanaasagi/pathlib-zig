@@ -177,7 +177,8 @@ pub const Path = struct {
         return Path{ .allocator = allocator, ._path = path, .fromHeap = fromHeap };
     }
 
-    pub fn deinit(self: Path) void {
+    pub inline fn deinit(self: Path) void {
+        // only need to free memory for the paths that we create
         if (self.fromHeap) {
             self.allocator.free(self._path);
         }
@@ -208,8 +209,23 @@ pub const Path = struct {
         return self;
     }
 
-    pub fn equal(self: Path, other: Path) bool {
-        return std.mem.eql(u8, self._path, other._path);
+    pub fn eql(self: Path, other: Path) bool {
+        // fast way
+        if (std.mem.eql(u8, self._path, other._path)) {
+            return true;
+        }
+
+        // deep equal
+        const a = self.absolute() catch {
+            return false;
+        };
+        defer a.deinit();
+        const b = other.absolute() catch {
+            return false;
+        };
+        defer b.deinit();
+
+        return std.mem.eql(u8, a._path, b._path);
     }
 
     pub fn toSlice(self: Path) []const u8 {
@@ -442,7 +458,22 @@ pub const Path = struct {
 
         return std.fs.cwd().openDir(self.toSlice(), flags);
     }
+
+    /// return a deep clone of the path
+    pub fn clone(self: Path) Path {
+        if (self.fromHeap()) {
+            var newPath = try self.allocator.alloc(u8, self._path.len);
+            std.mem.copy(u8, newPath[0..], self._path);
+
+            return Path.init(self.allocator, newPath, true);
+        }
+        return Path.init(self.allocator, self._path, self.fromHeap);
+    }
 };
+
+// -----------------------------------------------------------
+//                      unit tests
+// -----------------------------------------------------------
 
 test "test path toSlice" {
     const path = PathLib.init(std.testing.allocator).fromSlice("/home/monosuzu/");
@@ -490,6 +521,22 @@ test "test expanduser full path" {
     defer std.testing.allocator.free(result);
 
     try std.testing.expect(std.mem.eql(u8, path.toSlice(), result));
+}
+
+test "test eql" {
+    const path = try PathLib.init(std.testing.allocator).fromSlice("~/zig/src").expanduser();
+    defer path.deinit();
+
+    const home_dir = std.os.getenv("HOME") orelse "";
+    var result = try std.testing.allocator.alloc(u8, home_dir.len + "/zig/src".len);
+    std.mem.copy(u8, result[0..], home_dir);
+    std.mem.copy(u8, result[home_dir.len..], "/zig/src");
+    defer std.testing.allocator.free(result);
+
+    const expect = PathLib.init(std.testing.allocator).fromSlice(result);
+    defer expect.deinit();
+
+    try std.testing.expect(path.eql(expect));
 }
 
 test "test isAbsolute" {
