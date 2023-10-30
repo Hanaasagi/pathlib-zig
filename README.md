@@ -1,17 +1,10 @@
 # A user-friendly path handling library
 
-
-
-
-
-
-Work in progress, pull requests welcome.
-
+**After some thought, I believe this abstraction is unnecessary, so I've decided to archive it.**
 
 ### Example
 
 Full example here https://github.com/Hanaasagi/pathlib-zig/tree/master/examples
-
 
 ```zig
 const std = @import("std");
@@ -50,7 +43,6 @@ pub fn main() !void {
 }
 
 ```
-
 
 ### API
 
